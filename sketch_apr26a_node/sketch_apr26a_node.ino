@@ -82,13 +82,13 @@ void setup() {
 }
 
 void loop() {
-  receiveLoRa(); // Nhận yêu cầu từ Gateway nếu có
-
   unsigned long now = millis();
 
   // Mỗi 5 giây đo và nếu thay đổi thì gửi
   if (now - lastSendMillis > sendInterval) {
     lastSendMillis = now;
+
+    receiveLoRa(); // Nhận yêu cầu từ Gateway nếu có
     
     sensors.requestTemperatures();
     temperature = sensors.getTempCByIndex(0);

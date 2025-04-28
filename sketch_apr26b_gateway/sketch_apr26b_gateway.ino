@@ -1,79 +1,103 @@
 #include <WiFi.h>
-#include <FirebaseESP32.h>
+#include <WebServer.h>
 #include "LoRa_E32.h"
 
-// Firebase config
-#define FIREBASE_HOST "maysay-6221e-default-rtdb.asia-southeast1.firebasedatabase.app"
-#define FIREBASE_AUTH "s1nnZOt8dKppKu3AWaBk8einp5bps9wPU9XUODKM"
-
 // WiFi credentials
-char ssid[] = "Hanh L3";
-char pass[] = "antrongnoingoicoitivi";
+const char* ssid = "Hanh L3";
+const char* password = "antrongnoingoicoitivi";
 
-// Firebase and LoRa
-FirebaseData fbdo;
-FirebaseAuth auth;
-FirebaseConfig config;
+// Web Server
+WebServer server(80);
 
+// LoRa
 HardwareSerial LoRaSerial(2);
 LoRa_E32 e32ttl(&LoRaSerial);
 
-
-unsigned long lastRequestMillis = 0;
-unsigned long lastFirebaseMillis = 0;
-
+// System Variables
 float currentTemp = -1000;
 float threshold = 34.0;
-bool fanStatus = false;         // Current fan status
+bool fanStatus = false; // Fan status ON/OFF
 
-void checkAndUpdateFan() {
-  if (Firebase.getBool(fbdo, "/fan")) {
-    bool desiredFanStatus = fbdo.boolData();
-    if (desiredFanStatus != fanStatus) {    
-      fanStatus = desiredFanStatus;
-      String cmd = fanStatus ? "FAN:ON" : "FAN:OFF";
-      e32ttl.sendMessage(cmd);
-      Serial.println("Gửi lệnh điều khiển quạt: " + cmd);
-    }
+unsigned long lastTempRequestMillis = 0;
+
+void handleGetStatus() {
+  // Gửi dữ liệu hiện tại dạng JSON
+  String response = "{";
+  response += "\"temperature\":" + String(currentTemp) + ",";
+  response += "\"fanStatus\":" + String(fanStatus ? "true" : "false") + ",";
+  response += "\"threshold\":" + String(threshold);
+  response += "}";
+  
+  server.send(200, "application/json", response);
+}
+
+void handleSetThreshold() {
+  if (server.hasArg("threshold")) {
+    float newThreshold = server.arg("threshold").toFloat();
+    threshold = newThreshold;
+    
+    // Gửi threshold mới xuống Node nếu cần
+    String thresholdMsg = "THRESHOLD:" + String(threshold);
+    e32ttl.sendMessage(thresholdMsg);
+    Serial.println("Đặt threshold mới: " + thresholdMsg);
+    
+    server.send(200, "text/plain", "Threshold updated");
+  } else {
+    server.send(400, "text/plain", "Missing threshold parameter");
   }
 }
 
-void checkAndUpdateFanByTemp() {
+void handleSetFan() {
+  if (server.hasArg("status")) {
+    String status = server.arg("status");
+    if (status == "on") {
+      fanStatus = true;
+      e32ttl.sendMessage("FAN:ON");
+    } else if (status == "off") {
+      fanStatus = false;
+      e32ttl.sendMessage("FAN:OFF");
+    }
+    Serial.println("Đặt trạng thái quạt: " + status);
+    
+    server.send(200, "text/plain", "Fan status updated");
+  } else {
+    server.send(400, "text/plain", "Missing status parameter");
+  }
+}
+
+void checkFanByTemp() {
   if (currentTemp >= threshold && !fanStatus) {
     fanStatus = true;
-    Firebase.setBool(fbdo, "/fan", true);
-    Serial.println("Tự động bật quạt (theo ngưỡng mới)");
+    e32ttl.sendMessage("FAN:ON");
+    Serial.println("Tự động bật quạt do vượt ngưỡng");
   } else if (currentTemp < threshold && fanStatus) {
     fanStatus = false;
-    Firebase.setBool(fbdo, "/fan", false);
-    Serial.println("Tự động tắt quạt (theo ngưỡng mới)");
+    e32ttl.sendMessage("FAN:OFF");
+    Serial.println("Tự động tắt quạt do dưới ngưỡng");
   }
 }
 
-void handleLoRaResponse() {
+void handleLoRaData() {
   ResponseContainer rs = e32ttl.receiveMessage();
   String data = rs.data;
   data.trim();
-  Serial.println("Nhận LoRa: " + data);
+  Serial.println("Nhận từ LoRa: " + data);
 
   if (data.startsWith("TEMP:")) {
     float temp = data.substring(5).toFloat();
-    Serial.println("Nhiệt độ: " + String(temp));
-    Firebase.setFloat(fbdo, "/temperature", temp);
-
     currentTemp = temp;
-    // Kiểm tra nhiệt độ với threshold ngay khi có nhiệt độ mới
-    checkAndUpdateFanByTemp();
+    Serial.println("Cập nhật nhiệt độ: " + String(currentTemp));
+    checkFanByTemp();
   }
 }
-
 
 void setup() {
   Serial.begin(9600);
   LoRaSerial.begin(9600, SERIAL_8N1, 16, 17); // TX=17, RX=16
   e32ttl.begin();
 
-  WiFi.begin(ssid, pass);
+  // WiFi Connect
+  WiFi.begin(ssid, password);
   Serial.print("Kết nối WiFi");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -81,11 +105,15 @@ void setup() {
   }
   Serial.println(" OK");
 
-  // Firebase
-  config.signer.tokens.legacy_token = FIREBASE_AUTH;
-  config.database_url = FIREBASE_HOST;
-  Firebase.begin(&config, &auth);
-  Firebase.reconnectWiFi(true);
+  Serial.println("Địa chỉ IP ESP32: " + WiFi.localIP().toString());
+
+  // WebServer Routes
+  server.on("/status", HTTP_GET, handleGetStatus);
+  server.on("/set-threshold", HTTP_POST, handleSetThreshold);
+  server.on("/set-fan", HTTP_POST, handleSetFan);
+
+  server.begin();
+  Serial.println("Web server đã khởi động!");
 
   Serial.println("Gateway sẵn sàng.");
 }
@@ -93,50 +121,18 @@ void setup() {
 void loop() {
   unsigned long now = millis();
 
-  // Gửi yêu cầu lấy nhiệt độ mỗi 5 giây
-  // if (now - lastRequestMillis > 5000) {
-  //   lastRequestMillis = now;
-  //   e32ttl.sendMessage("REQ");
-  // }
-
-  // Đọc trạng thái quạt từ Firebase mỗi 500ms
-  // if (now - lastFirebaseMillis > 500) {
-  //   lastFirebaseMillis = now;
-  //   checkAndUpdateFan();
-  // }
-
-  // Nhận dữ liệu từ Node
+  // Đọc dữ liệu LoRa
   if (e32ttl.available() > 1) {
-    handleLoRaResponse();
+    handleLoRaData();
   }
 
-  if (currentTemp == -1000) {
-    Serial.println("Chưa có nhiệt độ, gửi yêu cầu REQ đến Node");
+  // Nếu chưa có nhiệt độ, gửi yêu cầu REQ sau mỗi 10 giây
+  if (currentTemp == -1000 && now - lastTempRequestMillis > 10000) {
     e32ttl.sendMessage("REQ");
-    delay(10000);
+    lastTempRequestMillis = now;
+    Serial.println("Gửi yêu cầu nhiệt độ đến Node");
   }
 
-  // // Theo dõi threshold thay đổi từ Firebase mỗi 500ms
-  // static unsigned long lastThresholdCheck = 0;
-  // if (now - lastThresholdCheck > 500) {
-  //   lastThresholdCheck = now;
-
-  //   if (Firebase.getFloat(fbdo, "/threshold")) {
-  //     float newThreshold = fbdo.floatData();
-  //     if (newThreshold != threshold) { // Nếu threshold thay đổi
-  //       Serial.println("Threshold mới: " + String(newThreshold));
-  //       threshold = newThreshold;
-
-  //       // Gửi ngưỡng mới xuống Node
-  //       String thresholdMsg = "THRESHOLD:" + String(threshold);
-  //       e32ttl.sendMessage(thresholdMsg);
-  //       Serial.println("Đã gửi ngưỡng nhiệt độ mới: " + thresholdMsg);
-  //     }
-  //   } else {
-  //     Serial.println("Không đọc được threshold từ Firebase!");
-  //   }
-
-  //   // Kiểm tra lại nhiệt độ với threshold mới
-  //   checkAndUpdateFanByTemp();
-  // }
+  // Xử lý request HTTP
+  server.handleClient();
 }
