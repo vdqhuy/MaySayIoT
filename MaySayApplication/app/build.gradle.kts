@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
 //    id("com.android.application")
-    id("com.google.gms.google-services")
+//    id("com.google.gms.google-services")
 }
 
 android {
@@ -47,5 +47,8 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
-    implementation(platform(libs.firebase.bom))
+//    implementation(platform(libs.firebase.bom))
+//    implementation("org.eclipse.paho:org.eclipse.paho.client.mqttv3:1.2.5")
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
 }

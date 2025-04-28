@@ -1,93 +1,110 @@
 package com.example.maysayapplication;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.os.Bundle;
-import android.view.View;
+import android.os.Handler;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
-import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
+import com.example.maysayapplication.model.Status;
+import com.example.maysayapplication.retrofit.RetrofitClient;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity {
 
-    private TextView txtTemperature, txtFanStatus;
     private EditText edtThreshold;
-    private Button btnSetThreshold;
-
-    private DatabaseReference tempRef, fanRef, thresholdRef;
+    private TextView txtTemperature, txtFanStatus;
+    private Handler handler;
+    private Runnable statusRunnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        Button btnSetThreshold = findViewById(R.id.btnSetThreshold);
+        edtThreshold = findViewById(R.id.edtThreshold);
         txtTemperature = findViewById(R.id.txtTemperature);
         txtFanStatus = findViewById(R.id.txtFanStatus);
-        edtThreshold = findViewById(R.id.edtThreshold);
-        btnSetThreshold = findViewById(R.id.btnSetThreshold);
 
-        // Firebase setup
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
-        tempRef = database.getReference("temperature");
-        fanRef = database.getReference("fan");
-        thresholdRef = database.getReference("threshold"); // Tham chiếu tới threshold
-
-        // Theo dõi nhiệt độ
-        tempRef.addValueEventListener(new ValueEventListener() {
+        // Tạo một Handler và Runnable để lấy trạng thái định kỳ
+        handler = new Handler();
+        statusRunnable = new Runnable() {
             @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                Double temp = snapshot.getValue(Double.class);
-                if (temp != null) {
-                    txtTemperature.setText("Nhiệt độ: " + temp + " °C");
-                }
+            public void run() {
+                getStatus();  // Gọi API lấy trạng thái
+                handler.postDelayed(this, 5000);  // Chạy lại sau 5 giây (5000ms)
             }
+        };
+        // Bắt đầu lấy trạng thái định kỳ
+        handler.post(statusRunnable);
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                txtTemperature.setText("Lỗi đọc nhiệt độ!");
-            }
-        });
+        // Cập nhật ngưỡng nhiệt độ khi bấm nút
+        btnSetThreshold.setOnClickListener(v -> setThreshold());
+    }
 
-        // Theo dõi trạng thái quạt
-        fanRef.addValueEventListener(new ValueEventListener() {
+    // Lấy trạng thái của quạt và nhiệt độ từ ESP32
+    private void getStatus() {
+        RetrofitClient.getInstance().getStatus().enqueue(new Callback<Status>() {
             @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                Boolean fanOn = snapshot.getValue(Boolean.class);
-                if (fanOn != null) {
-                    txtFanStatus.setText(fanOn ? "Quạt: Đang bật" : "Quạt: Đang tắt");
-                }
-            }
+            public void onResponse(Call<Status> call, Response<Status> response) {
+                if (response.isSuccessful()) {
+                    Status status = response.body();
+                    if (status != null) {
+                        // Cập nhật nhiệt độ và trạng thái quạt lên màn hình
+                        String temperature = "Nhiệt độ: " + status.getTemperature() + " °C";
+                        String fanStatus = "Quạt: " + (status.isFanStatus() ? "Bật" : "Tắt");
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) { }
-        });
+                        txtTemperature.setText(temperature);
+                        txtFanStatus.setText(fanStatus);
 
-        // Xử lý sự kiện khi nhấn nút "Đặt ngưỡng"
-        btnSetThreshold.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                String thresholdStr = edtThreshold.getText().toString().trim();
-                if (!thresholdStr.isEmpty()) {
-                    try {
-                        double threshold = Double.parseDouble(thresholdStr);
-                        thresholdRef.setValue(threshold);
-                        Toast.makeText(MainActivity.this, "Đã cập nhật ngưỡng: " + threshold + " °C", Toast.LENGTH_SHORT).show();
-                        edtThreshold.setText("");
-                    } catch (NumberFormatException e) {
-                        Toast.makeText(MainActivity.this, "Vui lòng nhập đúng số!", Toast.LENGTH_SHORT).show();
+                        edtThreshold.setText(String.valueOf(status.getThreshold()));  // Cập nhật ngưỡng
                     }
-                } else {
-                    Toast.makeText(MainActivity.this, "Vui lòng nhập ngưỡng!", Toast.LENGTH_SHORT).show();
                 }
             }
+
+            @Override
+            public void onFailure(Call<Status> call, Throwable t) {
+                txtTemperature.setText("Lỗi: " + t.getMessage());
+                txtFanStatus.setText("Lỗi kết nối");
+            }
         });
+    }
+
+    // Cập nhật ngưỡng nhiệt độ lên ESP32
+    private void setThreshold() {
+        String thresholdStr = edtThreshold.getText().toString();
+        if (!thresholdStr.isEmpty()) {
+            float threshold = Float.parseFloat(thresholdStr);
+            RetrofitClient.getInstance().setThreshold(threshold).enqueue(new Callback<String>() {
+                @Override
+                public void onResponse(Call<String> call, Response<String> response) {
+                    if (response.isSuccessful()) {
+                        String msg = "Đã đặt ngưỡng: " + response.body();
+                        txtFanStatus.setText(msg);  // Hiển thị kết quả lệnh vào TextView
+                    }
+                }
+
+                @Override
+                public void onFailure(Call<String> call, Throwable t) {
+                    txtFanStatus.setText("Lỗi: " + t.getMessage());
+                }
+            });
+        } else {
+            txtFanStatus.setText("Nhập ngưỡng hợp lệ!");
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Dừng Runnable khi Activity bị hủy
+        if (handler != null) {
+            handler.removeCallbacks(statusRunnable);
+        }
     }
 }

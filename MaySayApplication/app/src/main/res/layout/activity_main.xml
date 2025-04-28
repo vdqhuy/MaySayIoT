@@ -7,6 +7,7 @@
     android:padding="24dp"
     android:gravity="center">
 
+    <!-- Hiển thị nhiệt độ -->
     <TextView
         android:id="@+id/txtTemperature"
         android:layout_width="wrap_content"
@@ -16,6 +17,7 @@
         android:layout_marginBottom="16dp"
         android:layout_gravity="center"/>
 
+    <!-- Hiển thị trạng thái quạt -->
     <TextView
         android:id="@+id/txtFanStatus"
         android:layout_width="wrap_content"
@@ -34,6 +36,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"/>
 
+    <!-- Nút đặt ngưỡng nhiệt độ -->
     <Button
         android:id="@+id/btnSetThreshold"
         android:text="Đặt ngưỡng"
