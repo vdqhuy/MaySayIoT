@@ -6,7 +6,9 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.SwitchCompat;
 
+import com.example.maysayapplication.model.FanResponse;
 import com.example.maysayapplication.model.Status;
 import com.example.maysayapplication.retrofit.RetrofitClient;
 
@@ -18,6 +20,7 @@ public class MainActivity extends AppCompatActivity {
 
     private EditText edtThreshold;
     private TextView txtTemperature, txtFanStatus;
+    private SwitchCompat swFan;
     private Handler handler;
     private Runnable statusRunnable;
 
@@ -30,6 +33,7 @@ public class MainActivity extends AppCompatActivity {
         edtThreshold = findViewById(R.id.edtThreshold);
         txtTemperature = findViewById(R.id.txtTemperature);
         txtFanStatus = findViewById(R.id.txtFanStatus);
+        swFan = findViewById(R.id.switchFan);
 
         // Tạo một Handler và Runnable để lấy trạng thái định kỳ
         handler = new Handler();
@@ -45,6 +49,8 @@ public class MainActivity extends AppCompatActivity {
 
         // Cập nhật ngưỡng nhiệt độ khi bấm nút
         btnSetThreshold.setOnClickListener(v -> setThreshold());
+
+        swFan.setOnClickListener(v -> setFan());
     }
 
     // Lấy trạng thái của quạt và nhiệt độ từ ESP32
@@ -97,6 +103,28 @@ public class MainActivity extends AppCompatActivity {
         } else {
             txtFanStatus.setText("Nhập ngưỡng hợp lệ!");
         }
+    }
+
+    // Điều chỉnh trạng thái quạt
+    private void setFan() {
+        String status = swFan.isChecked() ? "on" : "off";
+
+        RetrofitClient.getInstance().setFan(status).enqueue(new Callback<FanResponse>() {
+            @Override
+            public void onResponse(Call<FanResponse> call, Response<FanResponse> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    String msg = response.body().getMessage();  // Lấy message từ FanResponse
+                    txtFanStatus.setText(msg);
+                } else {
+                    txtFanStatus.setText("Không thể cập nhật trạng thái quạt");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<FanResponse> call, Throwable t) {
+                txtFanStatus.setText("Lỗi: " + t.getMessage());
+            }
+        });
     }
 
     @Override

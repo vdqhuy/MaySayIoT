@@ -27,6 +27,15 @@
         android:layout_marginBottom="16dp"
         android:layout_gravity="center"/>
 
+    <!-- Công tắc bật/tắt quạt -->
+    <androidx.appcompat.widget.SwitchCompat
+        android:id="@+id/switchFan"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Bật/Tắt Quạt"
+        android:layout_marginBottom="16dp"
+        android:layout_gravity="center" />
+
     <!-- Input ngưỡng nhiệt độ -->
     <EditText
         android:id="@+id/edtThreshold"

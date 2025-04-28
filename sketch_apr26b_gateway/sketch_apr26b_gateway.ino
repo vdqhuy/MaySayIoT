@@ -59,9 +59,24 @@ void handleSetFan() {
     }
     Serial.println("Đặt trạng thái quạt: " + status);
     
-    server.send(200, "text/plain", "Fan status updated");
+    // Tạo JSON object
+    StaticJsonDocument<200> doc;
+    doc["message"] = "Fan status updated";
+    doc["fanStatus"] = fanStatus;
+
+    String response;
+    serializeJson(doc, response);
+
+    server.send(200, "application/json", response);
   } else {
-    server.send(400, "text/plain", "Missing status parameter");
+    // Nếu thiếu tham số
+    StaticJsonDocument<200> doc;
+    doc["error"] = "Missing status parameter";
+
+    String response;
+    serializeJson(doc, response);
+
+    server.send(400, "application/json", response);
   }
 }
 

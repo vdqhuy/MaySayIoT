@@ -1,5 +1,6 @@
 package com.example.maysayapplication.retrofit;
 
+import com.example.maysayapplication.model.FanResponse;
 import com.example.maysayapplication.model.Status;
 
 import retrofit2.Call;
@@ -13,6 +14,6 @@ public interface ApiService {
     @GET("set-threshold")
     Call<String> setThreshold(@Query("threshold") float threshold);
 
-    @GET("set-fan")
-    Call<String> setFan(@Query("status") String status);
+    @GET("/set-fan")
+    Call<FanResponse> setFan(@Query("status") String status);
 }
