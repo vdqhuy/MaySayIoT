@@ -9,6 +9,7 @@ export default defineConfig({
       '/set-threshold': 'http://localhost:3000',
       '/set-fan-status': 'http://localhost:3000',
       '/set-fan-mode': 'http://localhost:3000',
+      '/set-fan-schedule': 'http://localhost:3000',
     }
   }
 })

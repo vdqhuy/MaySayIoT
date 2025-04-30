@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { fetchStatus, updateThreshold, updateFanStatus, updateFanMode } from './api';
+import { fetchStatus, updateThreshold, updateFanStatus, updateFanMode, setFanSchedule } from './api';
 import './App.css';
+import TemperatureGauge from './TemperatureGauge';
 
 function App() {
   const [temperature, setTemperature] = useState(0);
@@ -11,6 +12,9 @@ function App() {
   const [newThreshold, setNewThreshold] = useState("");
   const [isSwitchDisabled, setIsSwitchDisabled] = useState(false);
   const [isButtonDisabled, setIsButtonDisabled] = useState(false);
+  const [scheduleTime, setScheduleTime] = useState(""); // hh:mm
+  const [scheduleAction, setScheduleAction] = useState("ON"); // "ON" or "OFF"
+
 
   const loadStatus = async () => {
     try {
@@ -50,11 +54,11 @@ function App() {
       console.error("❌ Lỗi khi cập nhật trạng thái quạt:", err);
       alert("Không thể cập nhật trạng thái quạt.");
     } finally {
-      // ⏱️ Mở khóa lại sau 7 giây
+      // ⏱️ Mở khóa lại sau 5 giây
       setTimeout(() => {
         setIsSwitchDisabled(false);
         setIsButtonDisabled(false);
-      }, 7000);
+      }, 5000);
     }
   };
 
@@ -78,7 +82,24 @@ function App() {
       setTimeout(() => {
         setIsSwitchDisabled(false);
         setIsButtonDisabled(false);
-      }, 7000);
+      }, 10000);
+    }
+  };
+
+  const handleSetSchedule = async () => {
+    if (!scheduleTime) {
+      alert("Vui lòng chọn thời gian!");
+      return;
+    }
+  
+    try {
+      // Gọi API để gửi lệnh đặt lịch hẹn
+      const result = await setFanSchedule(scheduleTime, scheduleAction)
+      console.log("Đặt lịch thành công:", result);
+      alert(result.message || "Đặt lịch thành công!");
+    } catch (error) {
+      console.error("Lỗi khi đặt lịch:", error);
+      alert("Không thể đặt lịch. Vui lòng thử lại.");
     }
   };  
 
@@ -90,53 +111,80 @@ function App() {
 
   return (
     <div style={{ padding: '2rem' }}>
-      <h1>🔥 IoT Fan Dashboard</h1>
+      <h1>🔥 IoT MaySay Dashboard</h1>
+      <TemperatureGauge temperature={temperature} maxTemp={100} />
       <p>Nhiệt độ hiện tại: <strong>{temperature}°C</strong></p>
-      <p>Trạng thái quạt: <strong style={{ color: fanStatus === "ON" ? "green" : "gray" }}>{fanStatus}</strong></p>
-      <p>
-        Chế độ quạt:{" "}
-        <button
-          disabled={isButtonDisabled}
-          onClick={handleToggleFanMode}
-          className={`mode-button ${fanMode.toLowerCase()}`}
-        >
-          {fanMode}
-        </button>
-      </p>
+      <p>Trạng thái quạt: <strong style={{ color: fanStatus === "ON" ? "#4CAF50" : "gray" }}>{fanStatus}</strong></p>
+      <div style={{ marginTop: "2rem", borderTop: "1px solid #ccc", paddingTop: "1rem" }}>
+        <p>
+          Chế độ quạt:{" "}
+          <button
+            disabled={isButtonDisabled}
+            onClick={handleToggleFanMode}
+            className={`mode-button ${fanMode.toLowerCase()}`}
+          >
+            {fanMode}
+          </button>
+        </p>
 
 
-      <div style={{ marginTop: '1rem' }}>
-        <label className="switch">
-        <input
-          type="checkbox"
-          checked={fanMode === "MANUAL" && fanStatus === "ON"}
-          onChange={handleManualFanToggle}
-          disabled={fanMode !== "MANUAL" || isSwitchDisabled}
-        />
-          <span
-            className={`slider ${
-              fanMode !== "MANUAL"
-                ? ""
-                : fanStatus === "ON"
-                ? "green"
-                : "red"
-            }`}
-          ></span>
-        </label>
-        <span style={{ marginLeft: "1rem" }}>
-          {fanStatus === "ON" ? "Quạt đang bật" : "Quạt đang tắt"}
-        </span>
+        <div style={{ marginTop: '1rem' }}>
+          <label className="switch">
+          <input
+            type="checkbox"
+            checked={fanMode === "MANUAL" && fanStatus === "ON"}
+            onChange={handleManualFanToggle}
+            disabled={fanMode !== "MANUAL" || isSwitchDisabled}
+          />
+            <span
+              className={`slider ${
+                fanMode !== "MANUAL"
+                  ? ""
+                  : fanStatus === "ON"
+                  ? "green"
+                  : "red"
+              }`}
+            ></span>
+          </label>
+          <span style={{ marginLeft: "1rem" }}>
+            {fanStatus === "ON" ? "Quạt đang bật" : "Quạt đang tắt"}
+          </span>
+        </div>
       </div>
 
-      <p>Ngưỡng hiện tại: <strong>{threshold}°C</strong></p>
+      <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', maxWidth: 300}}>
+        <h3>⏰ Hẹn giờ bật/tắt quạt</h3>
+        <label>
+          Chọn thời gian:
+          <input type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} />
+        </label>
 
-      <input
-        type="number"
-        value={newThreshold}
-        onChange={(e) => setNewThreshold(e.target.value)}
-        placeholder="Nhập ngưỡng mới"
-      />
-      <button onClick={handleUpdateThreshold} style={{ marginLeft: '1rem' }}>Cập nhật</button>
+        <label style={{ marginTop: '1rem' }}>
+          Hành động:
+          <select value={scheduleAction} onChange={(e) => setScheduleAction(e.target.value)}>
+            <option value="ON">Bật</option>
+            <option value="OFF">Tắt</option>
+          </select>
+        </label>
+        <button 
+          className='gen-button'
+          disabled={fanMode !== "MANUAL" || isButtonDisabled}
+          onClick={handleSetSchedule} style={{ marginTop: "1rem" }}>
+          Đặt lịch
+        </button>
+      </div>
+
+      <div style={{ marginTop: "2rem", borderTop: "1px solid #ccc", paddingTop: "1rem" }}>
+        <p>Ngưỡng hiện tại: <strong>{threshold}°C</strong></p>
+
+        <input
+          type="number"
+          value={newThreshold}
+          onChange={(e) => setNewThreshold(e.target.value)}
+          placeholder="Nhập ngưỡng mới"
+        />
+        <button onClick={handleUpdateThreshold} style={{ marginLeft: '1rem' }}>Cập nhật</button>
+      </div>
     </div>
   );
 }

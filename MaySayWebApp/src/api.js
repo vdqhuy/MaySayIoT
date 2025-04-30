@@ -21,4 +21,12 @@ export const updateFanMode = async (mode, appBtnState) => {
         appBtnState: appBtnState
      });
     return res.data;
+};
+
+export const setFanSchedule = async (scheduleTime, scheduleAction) => {
+  const res = await axios.post('/set-fan-schedule', { 
+      time: scheduleTime,
+      action: scheduleAction
+   });
+  return res.data;
 };  

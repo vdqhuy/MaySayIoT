@@ -2,6 +2,11 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 const path = require('path');
+const { setFanSchedule } = require('./scheduleController');
+const {
+  setFanStatusManual,
+  getFanStatusManual
+} = require('./fanState'); // ✅ sử dụng từ file state riêng
 
 const port = 3000;
 
@@ -9,7 +14,6 @@ let currentTemp = 0;
 let currentFanStatus = false;
 let currentFanMode = false;
 let tempThreshold = 60; // Default
-let fanStatusManual = false; // Default
 let currentAppBtnState = false; // Default
 
 app.use(cors());
@@ -29,30 +33,37 @@ app.post('/update-status', (req, res) => {
   console.log("Trạng thái nút app trên Web:", currentAppBtnState);
 
   let action = "NO_ACTION";
+  let vip_action = "NO_ACTION";
 
   if (currentAppBtnState != appBtnStateOnNode) {
-    action = currentAppBtnState ? "APP_HIGH" : "APP_LOW";
-  } else if (currentFanMode) {
-      if (currentTemp >= tempThreshold && !currentFanStatus) {
-          currentFanStatus = true;
-          action = "FAN_ON";
-      } else if (currentTemp < tempThreshold && currentFanStatus) {
-          currentFanStatus = false;
-          action = "FAN_OFF";
-      }
-  } else {
-    if (fanStatusManual) {
+    vip_action = currentAppBtnState ? "APP_HIGH" : "APP_LOW";
+  }
+  
+  if (currentFanMode) {
+    if (currentTemp >= tempThreshold && !currentFanStatus) {
       currentFanStatus = true;
       action = "FAN_ON";
+    } else if (currentTemp < tempThreshold && currentFanStatus) {
+      currentFanStatus = false;
+      action = "FAN_OFF";
     }
-    else {
+  } else {
+    if (getFanStatusManual()) {
+      currentFanStatus = true;
+      action = "FAN_ON";
+    } else {
       currentFanStatus = false;
       action = "FAN_OFF";
     }
   }
 
-  console.log(`⚡ Hành động: ${action}`);
-  res.send(action);
+  if (vip_action != "NO_ACTION") {
+    console.log(`⚡ Hành động VIP: ${vip_action}`);
+    res.send(vip_action);
+  } else {
+    console.log(`⚡ Hành động: ${action}`);
+    res.send(action);
+  }
 });
 
 // API Web giao diện gọi lấy trạng thái
@@ -74,10 +85,18 @@ app.post('/set-threshold', (req, res) => {
 
 // API chỉnh quạt khi ở chế độ MANUAL
 app.post('/set-fan-status', (req, res) => {
-  if (currentFanMode) return res.status(400).json({ message: "Chế độ quạt không phải MANUAL" });
-  fanStatusManual = req.body.fanStatus == "ON" ? true : false;
-  console.log("🔁 Trạng thái quạt mới:", fanStatusManual);
-  res.json({ message: "Fan status updated!", fanStatus: fanStatusManual ? "ON" : "OFF" });
+  if (currentFanMode) {
+    return res.status(400).json({ message: "Chế độ quạt không phải MANUAL" });
+  }
+
+  const newManualStatus = req.body.fanStatus === "ON";
+  setFanStatusManual(newManualStatus);
+  console.log("🔁 Trạng thái quạt mới (MANUAL):", newManualStatus);
+
+  res.json({
+    message: "Fan status updated!",
+    fanStatus: newManualStatus ? "ON" : "OFF"
+  });
 });
 
 // API bật tắt chế độ quạt (AUTO/MANUAL)
@@ -92,20 +111,23 @@ app.post('/set-fan-mode', (req, res) => {
   res.send(currentAppBtnState);
 });
 
-// API bật tắt chế độ quạt (AUTO/MANUAL)
+// API dành riêng cho node (không có nút app)
 app.post('/node/set-fan-mode', (req, res) => {
   const requestedMode = req.body.fanMode === "AUTO" ? true : false;
   currentFanMode = requestedMode;
 
-  console.log("🔄 Chế độ quạt đã chuyển sang:", currentFanMode ? "AUTO" : "MANUAL");
-  console.log("🔄 Trạng thái nút ứng dụng:", currentAppBtnState ? "HIGH" : "LOW");
- 
+  console.log("🔄 [Node] Chế độ quạt đã chuyển sang:", currentFanMode ? "AUTO" : "MANUAL");
+
   res.json({
     message: "Fan mode updated!",
     fanMode: currentFanMode ? "AUTO" : "MANUAL"
   });
 });
 
+// API đặt lịch
+app.post('/set-fan-schedule', setFanSchedule);
+
+// Bắt đầu server
 app.listen(port, () => {
   console.log(`🚀 Server chạy ở http://localhost:${port}`);
 });

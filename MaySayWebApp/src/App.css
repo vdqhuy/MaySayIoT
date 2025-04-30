@@ -92,3 +92,34 @@ input:checked + .slider:before {
   pointer-events: none;
   box-shadow: none;
 }
+
+.gen-button:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.gauge-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.gauge-container {
+  position: relative;
+  width: 80vw;          /* Chiếm 90% chiều rộng màn hình */
+  max-width: 600px;     /* Không vượt quá 600px */
+  aspect-ratio: 2 / 1;  /* Đảm bảo tỉ lệ 2:1 (giống 600x300) */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.gauge-value {
+  position: absolute;
+  top: 70%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(16px, 4vw, 28px); /* Tối thiểu 16px, tối đa 28px */
+  font-weight: bold;
+  white-space: nowrap;
+}
