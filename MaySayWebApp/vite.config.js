@@ -5,11 +5,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/status': 'http://localhost:3000',
-      '/set-threshold': 'http://localhost:3000',
-      '/set-fan-status': 'http://localhost:3000',
-      '/set-fan-mode': 'http://localhost:3000',
-      '/set-fan-schedule': 'http://localhost:3000',
+      '/status': 'https://maysayiot.onrender.com',
+      '/set-threshold': 'https://maysayiot.onrender.com',
+      '/set-fan-status': 'https://maysayiot.onrender.com',
+      '/set-fan-mode': 'https://maysayiot.onrender.com',
+      '/set-fan-schedule': 'https://maysayiot.onrender.com',
     }
   }
 })
