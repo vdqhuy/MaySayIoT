@@ -132,7 +132,7 @@ function App() {
           <label className="switch">
           <input
             type="checkbox"
-            checked={fanMode === "MANUAL" && fanStatus === "ON"}
+            checked={fanStatus === "ON"}
             onChange={handleManualFanToggle}
             disabled={fanMode !== "MANUAL" || isSwitchDisabled}
           />
