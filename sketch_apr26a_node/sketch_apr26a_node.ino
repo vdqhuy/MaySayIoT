@@ -2,56 +2,105 @@
 #include <LiquidCrystal_I2C.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#include "LoRa_E32.h"
 
 #define ONE_WIRE_BUS 4
 #define RELAY_PIN 26
+#define BUTTON_PIN 25
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
 HardwareSerial LoRaSerial(2);
-LoRa_E32 e32ttl(&LoRaSerial);
 
 float temperature = 0.0;
-float latestTemperature = -1000.0; // Giá trị ban đầu rất nhỏ để chắc chắn sẽ gửi lần đầu
 bool fanIsOn = false;
-int tempThreshold = 34; // Ngưỡng mặc định
+bool manualMode = false;
+int tempThreshold = 30;
+unsigned long fanStartTime = 0;
+unsigned long autoOffDuration = 30UL * 60UL * 1000UL;
+unsigned long lastButtonPress = 0;
+bool lastButtonState = HIGH;
 
-unsigned long lastSendMillis = 0;
-const unsigned long sendInterval = 5000; // Gửi mỗi 5 giây
+unsigned long lastSendTime = 0;
+const unsigned long sendInterval = 5000; // gửi nhiệt độ mỗi 5 giây
 
 void turnOnFan() {
   digitalWrite(RELAY_PIN, HIGH);
   fanIsOn = true;
+  fanStartTime = millis();
+  Serial.println("Node has turned on FAN");
 }
 
 void turnOffFan() {
   digitalWrite(RELAY_PIN, LOW);
   fanIsOn = false;
+  Serial.println("Node has turned off FAN");
+}
+
+void sendTemperature() {
+  sensors.requestTemperatures();
+  temperature = sensors.getTempCByIndex(0);
+  String msg = "TEMP:" + String(temperature, 1);
+  LoRaSerial.println(msg);
+}
+
+void sendFanStatus() {
+  String fanStatus = "";
+  if (fanIsOn) fanStatus = "ON";
+  else fanStatus = "OFF";
+    
+  String msg = "FAN:" + fanStatus;
+  LoRaSerial.println(msg);
+}
+
+void sendModeStatus() {
+  String modeMsg = manualMode ? "MODE:MANU" : "MODE:AUTO";
+  LoRaSerial.println(modeMsg);
+}
+
+void checkButton() {
+  bool currentState = digitalRead(BUTTON_PIN);
+  if (currentState == LOW && lastButtonState == HIGH && millis() - lastButtonPress > 500) {
+    manualMode = !manualMode;
+    sendModeStatus();
+    lastButtonPress = millis();
+  }
+  lastButtonState = currentState;
 }
 
 void receiveLoRa() {
-  Serial.println(e32ttl.available());
-  if (e32ttl.available() > 1) {
-    ResponseContainer rs = e32ttl.receiveMessage();
-    String data = rs.data;
+  while (LoRaSerial.available()) {
+    String data = LoRaSerial.readStringUntil('\n');
     data.trim();
     Serial.println("LoRa received: " + data);
 
-    if (data.startsWith("FAN:")) {
+    if (data == "REQ") {
+      Serial.println("Tempearture sent");
+      sendTemperature();
+      delay(100);
+      Serial.println("Fan status sent");
+      sendFanStatus();
+      delay(100);
+      Serial.println("Fan mode sent");
+      sendModeStatus();
+    }
+    else if (data.startsWith("FAN:")) {
+      if (!manualMode) return;
       String command = data.substring(4);
-      if (command == "ON") {
-        turnOnFan();
-      } else if (command == "OFF") {
-        turnOffFan();
+      if (command == "ON") turnOnFan();
+      else if (command == "OFF") turnOffFan();
+    }
+    else if (data.startsWith("TIME:")) {
+      int minutes = data.substring(5).toInt();
+      if (minutes > 0) {
+        autoOffDuration = minutes * 60UL * 1000UL;
       }
     }
-    else if (data == "REQ") {
-      String msg = "TEMP:" + String(temperature, 1);
-      e32ttl.sendMessage(msg);
-      Serial.println("Đã gửi yêu cầu REQ, nhiệt độ là: " + msg);
+    else if (data.startsWith("THRESH:")) {
+      tempThreshold = data.substring(7).toInt();
+      Serial.print("Ngưỡng nhiệt độ mới: ");
+      Serial.println(tempThreshold);
     }
   }
 }
@@ -65,15 +114,17 @@ void updateLCD() {
   lcd.setCursor(0, 1);
   lcd.print("Quat: ");
   lcd.print(fanIsOn ? "BAT " : "TAT ");
+  lcd.print(" ");
+  lcd.print(manualMode ? "MANU " : "AUTO ");
 }
 
 void setup() {
   Serial.begin(9600);
-  LoRaSerial.begin(9600, SERIAL_8N1, 16, 17); // TX=17, RX=16
-  e32ttl.begin();
+  LoRaSerial.begin(9600, SERIAL_8N1, 16, 17);
 
   sensors.begin();
   pinMode(RELAY_PIN, OUTPUT);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
   digitalWrite(RELAY_PIN, LOW);
 
   lcd.init();
@@ -82,34 +133,29 @@ void setup() {
 }
 
 void loop() {
-  unsigned long now = millis();
+  receiveLoRa();
+  checkButton();
 
-  // Mỗi 5 giây đo và nếu thay đổi thì gửi
-  if (now - lastSendMillis > sendInterval) {
-    lastSendMillis = now;
+  sensors.requestTemperatures();
+  temperature = sensors.getTempCByIndex(0);
 
-    receiveLoRa(); // Nhận yêu cầu từ Gateway nếu có
-    
-    sensors.requestTemperatures();
-    temperature = sensors.getTempCByIndex(0);
+  // if (!manualMode && temperature >= tempThreshold && !fanIsOn) {
+  //   turnOnFan();
+  // }
 
-    if (temperature != latestTemperature) {  // So sánh nhiệt độ mới với nhiệt độ cũ
-      latestTemperature = temperature;       // Cập nhật lại nhiệt độ cũ
-      String msg = "TEMP:" + String(temperature, 1);
-      e32ttl.sendMessage(msg);
-      Serial.println("Đã gửi nhiệt độ: " + msg);
-    } else {
-      Serial.println("Nhiệt độ không đổi, không gửi.");
-    }
-  }
+  // if (!manualMode && temperature < tempThreshold && fanIsOn) {
+  //   turnOffFan();
+  // }
 
-  // Bật/tắt quạt tự động dựa vào ngưỡng
-  if (temperature >= tempThreshold && !fanIsOn) {
-    turnOnFan();
-  }
-  else if (temperature < tempThreshold && fanIsOn) {
-    turnOffFan();
-  }
+  // if (!manualMode && fanIsOn && millis() - fanStartTime >= autoOffDuration) {
+  //   turnOffFan();
+  // }
+
+  // unsigned long now = millis();
+  // if (now - lastSendTime >= sendInterval) {
+  //   sendTemperature();
+  //   lastSendTime = now;
+  // }
 
   updateLCD();
 }

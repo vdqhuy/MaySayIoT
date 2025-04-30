@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Gateway Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .card { background: #f2f2f2; padding: 20px; border-radius: 10px; width: 300px; }
+    .status { font-size: 24px; margin-bottom: 10px; }
+    input[type=number] { width: 80px; }
+    button { margin-top: 10px; }
+  </style>
+</head>
+<body>
+
+  <h2>🌡️ Gateway Dashboard</h2>
+  <div class="card">
+    <div class="status">
+      Nhiệt độ: <span id="temp">--</span> °C
+    </div>
+    <div class="status">
+      Quạt: <span id="fan">--</span>
+    </div>
+    <div>
+      Ngưỡng nhiệt độ: <span id="threshold">--</span> °C
+    </div>
+    <div>
+      <input type="number" id="newThreshold" placeholder="Nhập ngưỡng mới" />
+      <button onclick="updateThreshold()">Cập nhật</button>
+    </div>
+  </div>
+
+<script>
+async function fetchStatus() {
+  const res = await fetch('/status');
+  const data = await res.json();
+  document.getElementById('temp').innerText = data.temperature;
+  document.getElementById('fan').innerText = data.fanStatus;
+  document.getElementById('threshold').innerText = data.threshold;
+}
+
+async function updateThreshold() {
+  const newThreshold = document.getElementById('newThreshold').value;
+  if (newThreshold) {
+    await fetch('/set-threshold', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ threshold: parseInt(newThreshold) })
+    });
+    alert("Cập nhật ngưỡng thành công!");
+    fetchStatus();
+  }
+}
+
+setInterval(fetchStatus, 3000); // cập nhật mỗi 3s
+fetchStatus();
+</script>
+
+</body>
+</html>
