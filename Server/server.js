@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 const path = require('path');
-const { setFanSchedule } = require('./scheduleController');
+const { setFanSchedule, setFanScheduleUntil } = require('./scheduleController');
 const {
   setFanStatusManual,
   getFanStatusManual
@@ -126,6 +126,9 @@ app.post('/node/set-fan-mode', (req, res) => {
 
 // API đặt lịch
 app.post('/set-fan-schedule', setFanSchedule);
+
+// API đặt lịch 2.0
+app.post('/set-fan-schedule-until', setFanScheduleUntil);
 
 // Bắt đầu server
 app.listen(port, () => {

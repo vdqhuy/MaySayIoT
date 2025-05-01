@@ -2,8 +2,8 @@
 #include <HTTPClient.h>
 #include "LoRa_E32.h"
 
-char ssid[] = "Hanh L3";
-char pass[] = "antrongnoingoicoitivi";
+char ssid[] = "Gach Cafe";
+char pass[] = "gachcafe1999";
 
 HardwareSerial E32Serial(1);
 LoRa_E32 e32ttl(&E32Serial);

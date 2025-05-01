@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchStatus, updateThreshold, updateFanStatus, updateFanMode, setFanSchedule } from './api';
+import { fetchStatus, updateThreshold, updateFanStatus, updateFanMode, setFanSchedule, setFanScheduleUntil } from './api';
 import './App.css';
 import TemperatureGauge from './TemperatureGauge';
 
@@ -14,6 +14,7 @@ function App() {
   const [isButtonDisabled, setIsButtonDisabled] = useState(false);
   const [scheduleTime, setScheduleTime] = useState(""); // hh:mm
   const [scheduleAction, setScheduleAction] = useState("ON"); // "ON" or "OFF"
+  const [scheduleEndTime, setScheduleEndTime] = useState(""); // hh:mm
 
 
   const loadStatus = async () => {
@@ -101,7 +102,23 @@ function App() {
       console.error("Lỗi khi đặt lịch:", error);
       alert("Không thể đặt lịch. Vui lòng thử lại.");
     }
-  };  
+  };
+
+  const handleSetScheduleUntil = async () => {
+    if (!scheduleEndTime) {
+      alert("Vui lòng chọn thời gian bắt đầu và kết thúc!");
+      return;
+    }
+  
+    try {
+      const result = await setFanScheduleUntil(scheduleEndTime, scheduleAction);
+      alert(result.message || "Đặt lịch thành công!");
+    } catch (error) {
+      console.error("Lỗi khi đặt lịch:", error);
+      alert("Không thể đặt lịch. Vui lòng thử lại.");
+    }
+  };
+  
 
   useEffect(() => {
     loadStatus();
@@ -172,6 +189,20 @@ function App() {
           onClick={handleSetSchedule} style={{ marginTop: "1rem" }}>
           Đặt lịch
         </button>
+
+        <h3>⏳ Hẹn giờ bật/tắt quạt cho tới khi</h3>
+        <label>
+          Thời gian kết thúc:
+          <input type="time" value={scheduleEndTime} onChange={(e) => setScheduleEndTime(e.target.value)} />
+        </label>
+        <label>
+          Hành động:
+          <select value={scheduleAction} onChange={(e) => setScheduleAction(e.target.value)}>
+            <option value="ON">Bật</option>
+            <option value="OFF">Tắt</option>
+          </select>
+        </label>
+        <button onClick={handleSetScheduleUntil}>Đặt lịch</button>
       </div>
 
       <div style={{ marginTop: "2rem", borderTop: "1px solid #ccc", paddingTop: "1rem" }}>

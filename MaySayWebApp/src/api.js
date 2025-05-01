@@ -4,6 +4,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 export const fetchStatus = async () => {
   const res = await axios.get(`${API_URL}/status`);
+  console.log(`${API_URL}/status`)
   return res.data;
 };
 
@@ -31,4 +32,12 @@ export const setFanSchedule = async (scheduleTime, scheduleAction) => {
       action: scheduleAction
    });
   return res.data;
-};  
+};
+
+export const setFanScheduleUntil = async (scheduleTime, scheduleAction) => {
+  const res = await axios.post(`${API_URL}/set-fan-schedule-until`, { 
+      time: scheduleTime,
+      action: scheduleAction
+   });
+  return res.data;
+};

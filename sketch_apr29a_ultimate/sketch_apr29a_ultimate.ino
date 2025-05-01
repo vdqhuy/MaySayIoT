@@ -33,8 +33,8 @@ const unsigned long sendInterval = 5000; // gửi nhiệt độ mỗi 5 giây
 char ssid[] = "Hanh L3";
 char pass[] = "antrongnoingoicoitivi";
 
-// const char* serverUrl = "http://192.168.1.5:3000";
-const char* serverUrl = "https://maysayiot.onrender.com";
+const char* serverUrl = "http://192.168.1.5:3000";
+// const char* serverUrl = "https://maysayiot.onrender.com";
 
 bool currentAppBtnState = LOW;
 
