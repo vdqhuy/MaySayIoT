@@ -113,6 +113,18 @@ app.post('/set-fan-status', (req, res) => {
   });
 });
 
+// API bật tắt lò
+app.post('/set-heater-status', (req, res) => {
+  const newHeaterStatus = req.body.heaterStatus === "ON";
+  currentHeaterStatus = newHeaterStatus;
+  console.log("🔁 Trạng thái lò mới:", newHeaterStatus);
+
+  res.json({
+    message: "Heater status updated!",
+    heaterStatus: newHeaterStatus ? "ON" : "OFF"
+  });
+});
+
 // API bật tắt chế độ quạt (AUTO/MANUAL)
 app.post('/set-fan-mode', (req, res) => {
   const requestedMode = req.body.fanMode === "AUTO" ? true : false;
