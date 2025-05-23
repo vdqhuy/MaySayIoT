@@ -6,6 +6,7 @@
 #define ONE_WIRE_BUS 4
 #define RELAY_PIN 26
 #define BUTTON_PIN 25
+#define RELAY_PIN_DRYER 13
 
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 OneWire oneWire(ONE_WIRE_BUS);
@@ -33,8 +34,8 @@ const unsigned long sendInterval = 5000; // gửi nhiệt độ mỗi 5 giây
 char ssid[] = "Hanh L3";
 char pass[] = "antrongnoingoicoitivi";
 
-const char* serverUrl = "http://192.168.1.5:3000";
-// const char* serverUrl = "https://maysayiot.onrender.com";
+// const char* serverUrl = "http://192.168.1.5:3000";
+const char* serverUrl = "https://maysayiot.onrender.com";
 
 bool currentAppBtnState = LOW;
 
@@ -46,6 +47,7 @@ void sendStatusToServer(float temp) {
 
     String payload = 
     "{\"temperature\":" + String(temp) + ", " +
+    "\"heaterStatus\":\"" + (heaterStatus ? "ON" : "OFF") + "\", " +
     "\"fanStatus\":\"" + (fanStatus ? "ON" : "OFF") + "\", " +
     "\"fanMode\":\"" + (fanMode ? "AUTO" : "MANUAL") + "\", " +
     "\"currentAppBtnState\":\"" + currentAppBtnState + "\"}";
@@ -56,7 +58,9 @@ void sendStatusToServer(float temp) {
       String response = http.getString();
       Serial.println("Server response: " + response);
 
-      if (response == "FAN_ON" && !fanStatus) {
+      if (response == "HEATER_ON" && !heaterStatus) turnOnHeater();
+      else if (response == "HEATER_OFF" && heaterStatus) turnOffHeater();
+      else if (response == "FAN_ON" && !fanStatus) {
         fanStatus = true;
         turnOnFan();
       } else if (response == "FAN_OFF" && fanStatus) {
@@ -198,6 +202,16 @@ void updateLCD() {
   lcd.print(fanMode ? "AUTO " : "MANU ");
 }
 
+// Hàm kiểm tra trạng thái của relay
+String dryerStatus() {
+  int state = digitalRead(RELAY_PIN_DRYER);
+  if (state == LOW) {
+    return "ON";  // Relay đang BẬT (máy sấy đang chạy)
+  } else {
+    return "OFF"; // Relay đang TẮT (máy sấy dừng)
+  }
+}
+
 void setup() {
   Serial.begin(9600);
   // LoRaSerial.begin(9600, SERIAL_8N1, 16, 17);
@@ -215,6 +229,8 @@ void setup() {
   pinMode(RELAY_PIN, OUTPUT);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   digitalWrite(RELAY_PIN, LOW);
+  pinMode(RELAY_PIN_DRYER, OUTPUT);
+  digitalWrite(RELAY_PIN_DRYER, HIGH);
 
   lcd.init();
   lcd.backlight();
@@ -249,4 +265,8 @@ void loop() {
   }
 
   updateLCD();
+
+  String status = dryerStatus();  // Gọi hàm để lấy trạng thái
+  Serial.println("Trạng thái relay (máy sấy): " + status);
+  delay(1000);
 }

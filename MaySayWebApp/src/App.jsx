@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { fetchStatus, updateThreshold, updateFanStatus, updateFanMode, setFanSchedule, setFanScheduleUntil } from './api';
+import { fetchStatus, updateThreshold, updateFanStatus, updateFanMode, setFanSchedule, setFanScheduleUntil, updateHeaterStatus } from './api';
 import './App.css';
 import TemperatureGauge from './TemperatureGauge';
 
 function App() {
   const [temperature, setTemperature] = useState(0);
+  const [heaterStatus, setheaterStatus] = useState("OFF");
   const [fanStatus, setFanStatus] = useState("OFF");
   const [threshold, setThreshold] = useState(60);
   const [fanMode, setFanMode] = useState("AUTO");
@@ -15,6 +16,9 @@ function App() {
   const [scheduleTime, setScheduleTime] = useState(""); // hh:mm
   const [scheduleAction, setScheduleAction] = useState("ON"); // "ON" or "OFF"
   const [scheduleEndTime, setScheduleEndTime] = useState(""); // hh:mm
+  const [heaterScheduleEndTime, setHeaterScheduleEndTime] = useState("");
+  const [heaterScheduleAction, setHeaterScheduleAction] = useState("ON");
+
 
 
   const loadStatus = async () => {
@@ -118,7 +122,41 @@ function App() {
       alert("Không thể đặt lịch. Vui lòng thử lại.");
     }
   };
-  
+
+  const handleHeaterToggle = async () => {
+    if (isSwitchDisabled) return;
+
+    setIsSwitchDisabled(true);
+    const nextStatus = heaterStatus === "ON" ? "OFF" : "ON";
+
+    try {
+      const result = await updateHeaterStatus(nextStatus); // 🔧 API phải có sẵn
+      console.log("Heater status updated:", result);
+      setHeaterStatus(nextStatus);
+    } catch (err) {
+      console.error("Lỗi khi cập nhật trạng thái lò:", err);
+      alert("Không thể cập nhật trạng thái lò.");
+    } finally {
+      setTimeout(() => {
+        setIsSwitchDisabled(false);
+      }, 5000);
+    }
+  };
+
+  const handleSetHeaterScheduleUntil = async () => {
+    if (!heaterScheduleEndTime) {
+      alert("Vui lòng chọn thời gian kết thúc!");
+      return;
+    }
+
+    try {
+      const result = await setHeaterSchedule(heaterScheduleEndTime, heaterScheduleAction);
+      alert(result.message || "Đặt lịch lò thành công!");
+    } catch (error) {
+      console.error("Lỗi khi đặt lịch lò:", error);
+      alert("Không thể đặt lịch lò. Vui lòng thử lại.");
+    }
+  };
 
   useEffect(() => {
     loadStatus();
@@ -128,10 +166,53 @@ function App() {
 
   return (
     <div style={{ padding: '2rem' }}>
-      <h1>🔥 IoT MaySay Dashboard</h1>
+      {/* <h1>🔥 IoT MaySay Dashboard</h1> */}
       <TemperatureGauge temperature={temperature} maxTemp={100} />
       <p>Nhiệt độ hiện tại: <strong>{temperature}°C</strong></p>
+      <p>Trạng thái lò: <strong style={{ color: heaterStatus === "ON" ? "#4CAF50" : "gray" }}>{heaterStatus}</strong></p>
       <p>Trạng thái quạt: <strong style={{ color: fanStatus === "ON" ? "#4CAF50" : "gray" }}>{fanStatus}</strong></p>
+
+      <div style={{ marginTop: "2rem", borderTop: "1px solid #ccc", paddingTop: "1rem" }}>
+        <div style={{ marginTop: '1rem' }}>
+          <label className="switch">
+            <input
+              type="checkbox"
+              checked={heaterStatus === "ON"}
+              onChange={handleHeaterToggle}
+              disabled={isSwitchDisabled}
+            />
+            <span
+              className={`slider ${
+                heaterStatus === "ON" ? "green" : "red"
+              }`}
+            ></span>
+          </label>
+          <span style={{ marginLeft: "1rem" }}>
+            {heaterStatus === "ON" ? "Lò đang bật" : "Lò đang tắt"}
+          </span>
+        </div>
+
+        <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', maxWidth: 300 }}>
+          <h3>⏳ Hẹn giờ bật/tắt lò cho tới khi</h3>
+          <label>
+            Thời gian kết thúc:
+            <input type="time" value={heaterScheduleEndTime} onChange={(e) => setHeaterScheduleEndTime(e.target.value)} />
+          </label>
+          <label>
+            Hành động:
+            <select value={heaterScheduleAction} onChange={(e) => setHeaterScheduleAction(e.target.value)}>
+              <option value="ON">Bật</option>
+              <option value="OFF">Tắt</option>
+            </select>
+          </label>
+          <button
+            className='gen-button'
+            disabled={isButtonDisabled}
+            onClick={handleSetHeaterScheduleUntil}
+          >Đặt lịch</button>
+        </div>
+      </div>
+
       <div style={{ marginTop: "2rem", borderTop: "1px solid #ccc", paddingTop: "1rem" }}>
         <p>
           Chế độ quạt:{" "}
@@ -143,7 +224,6 @@ function App() {
             {fanMode}
           </button>
         </p>
-
 
         <div style={{ marginTop: '1rem' }}>
           <label className="switch">
@@ -202,7 +282,10 @@ function App() {
             <option value="OFF">Tắt</option>
           </select>
         </label>
-        <button onClick={handleSetScheduleUntil}>Đặt lịch</button>
+        <button
+          className='gen-button'
+          disabled={fanMode !== "MANUAL" || isButtonDisabled} 
+          onClick={handleSetScheduleUntil}>Đặt lịch</button>
       </div>
 
       <div style={{ marginTop: "2rem", borderTop: "1px solid #ccc", paddingTop: "1rem" }}>

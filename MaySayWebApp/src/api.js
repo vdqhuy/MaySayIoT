@@ -13,6 +13,11 @@ export const updateThreshold = async (threshold) => {
   return res.data;
 };
 
+export const updateHeaterStatus = async (heaterStatus) => {
+  const res = await axios.post(`${API_URL}/set-heater-status`, { heaterStatus });
+  return res.data;
+}
+
 export const updateFanStatus = async (fanStatus) => {
     const res = await axios.post(`${API_URL}/set-fan-status`, { fanStatus });
     return res.data;

@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const cors = require('cors');
 const path = require('path');
-const { setFanSchedule, setFanScheduleUntil } = require('./scheduleController');
+const { setFanSchedule, setFanScheduleUntil, setHeaterScheduleUntil } = require('./scheduleController');
 const {
   setFanStatusManual,
   getFanStatusManual
@@ -11,6 +11,7 @@ const {
 const port = 3000;
 
 let currentTemp = 0;
+let currentHeaterStatus = false;
 let currentFanStatus = false;
 let currentFanMode = false;
 let tempThreshold = 60; // Default
@@ -23,9 +24,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 // API Gateway gửi nhiệt độ vào
 app.post('/update-status', (req, res) => {
   currentTemp = req.body.temperature;
+  currentHeaterStatus = req.body.heaterStatus == "ON" ? true : false;
   currentFanStatus = req.body.fanStatus == "ON" ? true : false;
   currentFanMode = req.body.fanMode == "AUTO" ? true : false;
   console.log("🔥 Nhiệt độ nhận được:", currentTemp);
+  console.log("Trạng thái lò hiện tại:", currentHeaterStatus);
   console.log("Trạng thái quạt hiện tại:", currentFanStatus);
   console.log("Chế độ quạt hiện tại:", currentFanMode);
   const appBtnStateOnNode = req.body.currentAppBtnState == 1 ? true : false;
@@ -34,9 +37,14 @@ app.post('/update-status', (req, res) => {
 
   let action = "NO_ACTION";
   let vip_action = "NO_ACTION";
+  let heater_action = "NO_ACTION";
 
   if (currentAppBtnState != appBtnStateOnNode) {
     vip_action = currentAppBtnState ? "APP_HIGH" : "APP_LOW";
+  }
+
+  if (currentHeaterStatus) {
+    heater_action = currentHeaterStatus ? "HEATER_ON" : "HEATER_OFF";
   }
   
   if (currentFanMode) {
@@ -60,7 +68,12 @@ app.post('/update-status', (req, res) => {
   if (vip_action != "NO_ACTION") {
     console.log(`⚡ Hành động VIP: ${vip_action}`);
     res.send(vip_action);
-  } else {
+  }
+  else if (heater_action != "NO_ACTION") {
+    console.log(`⚡ Hành động: ${heater_action}`);
+    res.send(heater_action);
+  }
+  else {
     console.log(`⚡ Hành động: ${action}`);
     res.send(action);
   }
@@ -129,6 +142,9 @@ app.post('/set-fan-schedule', setFanSchedule);
 
 // API đặt lịch 2.0
 app.post('/set-fan-schedule-until', setFanScheduleUntil);
+
+// API đặt lịch cho lò
+app.post('/set-heater-schedule-until', setHeaterScheduleUntil);
 
 // Bắt đầu server
 app.listen(port, () => {

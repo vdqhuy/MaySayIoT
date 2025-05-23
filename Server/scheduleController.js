@@ -3,7 +3,8 @@ const dayjs = require("dayjs");
 const utc = require("dayjs/plugin/utc");
 const timezone = require("dayjs/plugin/timezone");
 
-const { setFanStatusManual } = require("./fanState"); // ✅ import đúng
+const { setFanStatusManual } = require("./fanState");
+const { setHeaterStatus } = require("./heaterState");
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -72,4 +73,34 @@ function setFanScheduleUntil(req, res) {
   return res.json({ message: `✅ Đã đặt lịch quạt ${action} cho tới lúc ${time} (giờ VN)` });
 }
 
-module.exports = { setFanSchedule, setFanScheduleUntil };
+function setHeaterScheduleUntil(req, res) {
+  const { time, action } = req.body;
+
+  if (!time || !["ON", "OFF"].includes(action)) {
+    return res.status(400).json({ message: "Dữ liệu không hợp lệ" });
+  }
+
+  const [hour, minute] = time.split(":").map(Number);
+  const nowVN = dayjs().tz("Asia/Ho_Chi_Minh");
+  let targetTime = nowVN.hour(hour).minute(minute).second(0);
+
+  if (targetTime.isBefore(nowVN)) {
+    targetTime = targetTime.add(1, "day");
+  }
+
+  const realDate = targetTime.toDate();
+  const newStatus = action === "ON";
+  setHeaterStatus(newStatus);
+
+  const job = schedule.scheduleJob(realDate, () => {
+    const newAction = action === "ON" ? "OFF" : "ON";
+    setHeaterStatus(!newStatus);
+    console.log(`⏳ Hành động: Lò ${newAction} lúc ${time}`);
+  });
+
+  schedules.push({ time, action, job });
+
+  return res.json({ message: `✅ Đã đặt lịch lò ${action} cho tới lúc ${time} (giờ VN)` });
+}
+
+module.exports = { setFanSchedule, setFanScheduleUntil, setHeaterScheduleUntil };
