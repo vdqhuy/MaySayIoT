@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
-import { fetchStatus, updateThreshold, updateFanStatus, updateFanMode, setFanSchedule, setFanScheduleUntil, updateHeaterStatus } from './api';
+import { fetchStatus, updateThreshold, updateFanStatus, updateFanMode, setFanSchedule, setFanScheduleUntil, updateHeaterStatus, setHeaterSchedule } from './api';
 import './App.css';
 import TemperatureGauge from './TemperatureGauge';
 
 function App() {
   const [temperature, setTemperature] = useState(0);
-  const [heaterStatus, setheaterStatus] = useState("OFF");
+  const [heaterStatus, setHeaterStatus] = useState("OFF");
   const [fanStatus, setFanStatus] = useState("OFF");
   const [threshold, setThreshold] = useState(60);
   const [fanMode, setFanMode] = useState("AUTO");
@@ -25,6 +25,7 @@ function App() {
     try {
       const data = await fetchStatus();
       setTemperature(data.temperature);
+      setHeaterStatus(data.heaterStatus);
       setFanStatus(data.fanStatus);
       setThreshold(data.threshold);
       setFanMode(data.fanMode);
@@ -130,7 +131,7 @@ function App() {
     const nextStatus = heaterStatus === "ON" ? "OFF" : "ON";
 
     try {
-      const result = await updateHeaterStatus(nextStatus); // 🔧 API phải có sẵn
+      const result = await updateHeaterStatus(nextStatus);
       console.log("Heater status updated:", result);
       setHeaterStatus(nextStatus);
     } catch (err) {

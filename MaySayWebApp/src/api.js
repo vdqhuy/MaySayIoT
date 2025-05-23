@@ -46,3 +46,11 @@ export const setFanScheduleUntil = async (scheduleTime, scheduleAction) => {
    });
   return res.data;
 };
+
+export const setHeaterSchedule = async (scheduleTime, scheduleAction) => {
+  const res = await axios.post(`${API_URL}/set-heater-schedule-until`, { 
+      time: scheduleTime,
+      action: scheduleAction
+   });
+  return res.data;
+}
