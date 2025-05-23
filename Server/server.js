@@ -83,6 +83,7 @@ app.post('/update-status', (req, res) => {
 app.get('/status', (req, res) => {
   res.json({
     temperature: currentTemp,
+    heaterStatus: currentHeaterStatus ? "ON" : "OFF",
     fanStatus: currentFanStatus ? "ON" : "OFF",
     threshold: tempThreshold,
     fanMode: currentFanMode ? "AUTO" : "MANUAL"
