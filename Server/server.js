@@ -23,75 +23,64 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// API Gateway gửi nhiệt độ vào
 app.post('/update-status', (req, res) => {
   currentTemp = req.body.temperature;
   currentHeaterStatus = req.body.heaterStatus == "ON" ? true : false;
   currentHeaterStatusApp = req.body.heaterStatusApp == "ON" ? true : false;
   currentFanStatus = req.body.fanStatus == "ON" ? true : false;
   currentFanMode = req.body.fanMode == "AUTO" ? true : false;
-  console.log("🔥 Nhiệt độ nhận được:", currentTemp);
-  const appHeaterStateOnNode = req.body.heaterStatusApp == 0 ? true : false;
-  console.log("Trạng thái lò hiện tại:", currentHeaterStatus);
-  console.log("Trạng thái quạt hiện tại:", currentFanStatus);
-  console.log("Chế độ quạt hiện tại:", currentFanMode);
   const appBtnStateOnNode = req.body.currentAppBtnState == 1 ? true : false;
-  console.log("Trạng thái nút app trên Node:", appBtnStateOnNode);
-  console.log("Trạng thái nút app trên Web:", currentAppBtnState);
 
-  let action = "NO_ACTION";
-  let vip_action = "NO_ACTION";
-  let heater_action = "NO_ACTION";
+  let actions = [];
 
+  // Đồng bộ trạng thái app button
   if (currentAppBtnState != appBtnStateOnNode) {
-    vip_action = currentAppBtnState ? "APP_HIGH" : "APP_LOW";
+    const vip_action = currentAppBtnState ? "APP_HIGH" : "APP_LOW";
+    console.log(`⚡ Hành động VIP: ${vip_action}`);
+    actions.push(vip_action);
   }
 
-  if (currentHeaterStatusApp != appHeaterStateOnNode) {
-    heater_action = currentHeaterStatusApp ? "HEATER_ON" : "HEATER_OFF";
+  // Heater logic
+  if (getHeaterStatus()) {
+    if (!currentHeaterStatus) {
+      actions.push("HEATER_ON");
+      currentHeaterStatus = true;
+    }
+  } else {
+    if (currentHeaterStatus) {
+      actions.push("HEATER_OFF");
+      currentHeaterStatus = false;
+    }
   }
 
-  // if (getHeaterStatus()) {
-  //   currentHeaterStatus = true;
-  //   heater_action = "HEATER_ON";
-  // } else {
-  //   currentHeaterStatus = false;
-  //   heater_action = "HEATER_OFF";
-  // }
-  
+  // Fan logic
   if (currentFanMode) {
     if (currentTemp >= tempThreshold && !currentFanStatus) {
+      actions.push("FAN_ON");
       currentFanStatus = true;
-      action = "FAN_ON";
     } else if (currentTemp < tempThreshold && currentFanStatus) {
+      actions.push("FAN_OFF");
       currentFanStatus = false;
-      action = "FAN_OFF";
     }
   } else {
-    if (getFanStatusManual()) {
+    if (getFanStatusManual() && !currentFanStatus) {
+      actions.push("FAN_ON");
       currentFanStatus = true;
-      action = "FAN_ON";
-    } else {
+    } else if (!getFanStatusManual() && currentFanStatus) {
+      actions.push("FAN_OFF");
       currentFanStatus = false;
-      action = "FAN_OFF";
     }
   }
 
-  if (vip_action != "NO_ACTION") {
-    console.log(`⚡ Hành động VIP: ${vip_action}`);
-    res.send(vip_action);
-  }
-  else if (heater_action != "NO_ACTION") {
-    console.log(`⚡ Hành động: ${heater_action}`);
-    res.send(heater_action);
-  }
-  else if (action != "NO_ACTION") {
-    console.log(`⚡ Hành động: ${action}`);
-    res.send(action);
+  // Gửi tất cả các hành động
+  if (actions.length === 0) {
+    console.log("⚡ Hành động: NO_ACTION");
+    actions.push("NO_ACTION");
   } else {
-    console.log(`⚡ Hành động: NO_ACTION`);
-    res.send('NO_ACTION');
+    console.log("⚡ Các hành động:", actions);
   }
+
+  res.json({ actions });
 });
 
 // API Web giao diện gọi lấy trạng thái
