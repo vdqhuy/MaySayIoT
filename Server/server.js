@@ -45,7 +45,7 @@ app.post('/update-status', (req, res) => {
     vip_action = currentAppBtnState ? "APP_HIGH" : "APP_LOW";
   }
 
-  if (getHeaterStatus()) {
+  if (getHeaterStatus() && !currentHeaterStatus) {
     currentHeaterStatus = true;
     heater_action = "HEATER_ON";
   } else {
