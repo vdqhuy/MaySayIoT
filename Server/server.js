@@ -7,11 +7,13 @@ const {
   setFanStatusManual,
   getFanStatusManual
 } = require('./fanState'); // ✅ sử dụng từ file state riêng
+const { setHeaterStatus, getHeaterStatus } = require('./heaterState');
 
 const port = 3000;
 
 let currentTemp = 0;
 let currentHeaterStatus = false;
+let currentHeaterStatusApp = false;
 let currentFanStatus = false;
 let currentFanMode = false;
 let tempThreshold = 60; // Default
@@ -43,8 +45,12 @@ app.post('/update-status', (req, res) => {
     vip_action = currentAppBtnState ? "APP_HIGH" : "APP_LOW";
   }
 
-  if (currentHeaterStatus) {
-    heater_action = currentHeaterStatus ? "HEATER_ON" : "HEATER_OFF";
+  if (getHeaterStatus()) {
+    currentHeaterStatus = true;
+    heater_action = "HEATER_ON";
+  } else {
+    currentHeaterStatus = false;
+    heater_action = "HEATER_OFF";
   }
   
   if (currentFanMode) {
@@ -116,7 +122,7 @@ app.post('/set-fan-status', (req, res) => {
 // API bật tắt lò
 app.post('/set-heater-status', (req, res) => {
   const newHeaterStatus = req.body.heaterStatus === "ON";
-  currentHeaterStatus = newHeaterStatus;
+  setHeaterStatus(newHeaterStatus);
   console.log("🔁 Trạng thái lò mới:", newHeaterStatus);
 
   res.json({
