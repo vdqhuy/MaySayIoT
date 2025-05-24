@@ -27,9 +27,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.post('/update-status', (req, res) => {
   currentTemp = req.body.temperature;
   currentHeaterStatus = req.body.heaterStatus == "ON" ? true : false;
+  currentHeaterStatusApp = req.body.heaterStatusApp == "ON" ? true : false;
   currentFanStatus = req.body.fanStatus == "ON" ? true : false;
   currentFanMode = req.body.fanMode == "AUTO" ? true : false;
   console.log("🔥 Nhiệt độ nhận được:", currentTemp);
+  const appHeaterStateOnNode = req.body.heaterStatusApp == 0 ? true : false;
   console.log("Trạng thái lò hiện tại:", currentHeaterStatus);
   console.log("Trạng thái quạt hiện tại:", currentFanStatus);
   console.log("Chế độ quạt hiện tại:", currentFanMode);
@@ -45,13 +47,17 @@ app.post('/update-status', (req, res) => {
     vip_action = currentAppBtnState ? "APP_HIGH" : "APP_LOW";
   }
 
-  if (getHeaterStatus()) {
-    currentHeaterStatus = true;
-    heater_action = "HEATER_ON";
-  } else {
-    currentHeaterStatus = false;
-    heater_action = "HEATER_OFF";
+  if (currentHeaterStatusApp != appHeaterStateOnNode) {
+    heater_action = currentHeaterStatusApp ? "HEATER_ON" : "HEATER_OFF";
   }
+
+  // if (getHeaterStatus()) {
+  //   currentHeaterStatus = true;
+  //   heater_action = "HEATER_ON";
+  // } else {
+  //   currentHeaterStatus = false;
+  //   heater_action = "HEATER_OFF";
+  // }
   
   if (currentFanMode) {
     if (currentTemp >= tempThreshold && !currentFanStatus) {
@@ -75,13 +81,13 @@ app.post('/update-status', (req, res) => {
     console.log(`⚡ Hành động VIP: ${vip_action}`);
     res.send(vip_action);
   }
+  else if (heater_action != "NO_ACTION") {
+    console.log(`⚡ Hành động: ${heater_action}`);
+    res.send(heater_action);
+  }
   else if (action != "NO_ACTION") {
     console.log(`⚡ Hành động: ${action}`);
     res.send(action);
-  }
-  else {
-    console.log(`⚡ Hành động: ${heater_action}`);
-    res.send(heater_action);
   }
 });
 
