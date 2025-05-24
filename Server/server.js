@@ -88,6 +88,9 @@ app.post('/update-status', (req, res) => {
   else if (action != "NO_ACTION") {
     console.log(`⚡ Hành động: ${action}`);
     res.send(action);
+  } else {
+    console.log(`⚡ Hành động: NO_ACTION`);
+    res.send('NO_ACTION');
   }
 });
 
