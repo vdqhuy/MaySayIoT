@@ -45,13 +45,13 @@ app.post('/update-status', (req, res) => {
     vip_action = currentAppBtnState ? "APP_HIGH" : "APP_LOW";
   }
 
-  // if (getHeaterStatus()) {
-  //   currentHeaterStatus = true;
-  //   heater_action = "HEATER_ON";
-  // } else {
-  //   currentHeaterStatus = false;
-  //   heater_action = "HEATER_OFF";
-  // }
+  if (getHeaterStatus()) {
+    currentHeaterStatus = true;
+    heater_action = "HEATER_ON";
+  } else {
+    currentHeaterStatus = false;
+    heater_action = "HEATER_OFF";
+  }
   
   if (currentFanMode) {
     if (currentTemp >= tempThreshold && !currentFanStatus) {
@@ -153,6 +153,18 @@ app.post('/node/set-fan-mode', (req, res) => {
   res.json({
     message: "Fan mode updated!",
     fanMode: currentFanMode ? "AUTO" : "MANUAL"
+  });
+});
+
+app.post('/node/set-heater-status', (req, res) => {
+  const requestMode = req.body.heaterStatus === "ON" ? true : false;
+  currentHeaterStatus = requestMode;
+
+  console.log("🔄 [Node] Trạng thái lò đã chuyển sang:", currentHeaterStatus ? "ON" : "OFF");
+
+  res.json({
+    message: "Heater status updated!",
+    heaterStatus: currentHeaterStatus ? "ON" : "OFF"
   });
 });
 
