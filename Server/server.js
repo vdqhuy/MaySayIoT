@@ -45,7 +45,7 @@ app.post('/update-status', (req, res) => {
     vip_action = currentAppBtnState ? "APP_HIGH" : "APP_LOW";
   }
 
-  if (getHeaterStatus() && !currentHeaterStatus) {
+  if (getHeaterStatus()) {
     currentHeaterStatus = true;
     heater_action = "HEATER_ON";
   } else {
@@ -75,13 +75,13 @@ app.post('/update-status', (req, res) => {
     console.log(`⚡ Hành động VIP: ${vip_action}`);
     res.send(vip_action);
   }
-  else if (heater_action != "NO_ACTION") {
-    console.log(`⚡ Hành động: ${heater_action}`);
-    res.send(heater_action);
-  }
-  else {
+  else if (action != "NO_ACTION") {
     console.log(`⚡ Hành động: ${action}`);
     res.send(action);
+  }
+  else {
+    console.log(`⚡ Hành động: ${heater_action}`);
+    res.send(heater_action);
   }
 });
 
