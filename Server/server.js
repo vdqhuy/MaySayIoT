@@ -45,13 +45,13 @@ app.post('/update-status', (req, res) => {
     vip_action = currentAppBtnState ? "APP_HIGH" : "APP_LOW";
   }
 
-  // if (getHeaterStatus()) {
-  //   currentHeaterStatus = true;
-  //   heater_action = "HEATER_ON";
-  // } else {
-  //   currentHeaterStatus = false;
-  //   heater_action = "HEATER_OFF";
-  // }
+  if (getHeaterStatus()) {
+    currentHeaterStatus = true;
+    heater_action = "HEATER_ON";
+  } else {
+    currentHeaterStatus = false;
+    heater_action = "HEATER_OFF";
+  }
   
   if (currentFanMode) {
     if (currentTemp >= tempThreshold && !currentFanStatus) {
